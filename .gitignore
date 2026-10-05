@@ -1,0 +1,5 @@
+*.pdf
+*.cmo
+*.cmi
+*.mli
+bin/*
