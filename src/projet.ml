@@ -1,69 +1,68 @@
-(* Le type [dbtype] défini les différents types possiblement présents
-   en base dans notre cadre.
+(* The [dbtype] type defines the different types that may appear in a database
+   in our context.
 
-  Nous n'aurons ici besoin que de deux types primitifs.
+  We only need two primitive types here.
 
-  - les entiers représentés ici par TInt
-  - les textes représentés ici par TText
+  - integers represented here by TInt
+  - text represented here by TText
  *)
 type dbtype =
-  | TInt  (* type des entrées entières *)
-  | TText (* type des entrées textes   *)
+  | TInt  (* type of integer entries *)
+  | TText (* type of text entries    *)
 ;;
 
-(* Le type [coltype] est le type représentant un champ dans une table
-   de notre système.
+(* The [coltype] type is the type representing a field in a table
+   in our system.
 
-   Il est composé d'un couple comprenant le type des valeurs présentes
-   dans ce champ d'une part et d'un booléen exprimant la possibilité
-   (dans le cas où le booléen est à [true]) ou non pour ce champs
-   d'adopter la valeur [NULL] *)
+   It consists of a pair containing the type of the values present
+   in that field on one hand and a boolean expressing whether
+   (when the boolean is [true]) or not this field may take the value [NULL] *)
 type coltype = dbtype * bool ;;
 
-(* Le type [dbvalue] est le type des *VALEURS* présentes en base.
+(* The [dbvalue] type is the type of the *VALUES* present in the database.
 
-  Nous aurons besoin ici de trois types de valeurs.
+  We need three kinds of values here.
 
-  - les valeurs entières munies de leurs valeurs
-  - les valeurs textuelles munies de leurs valeurs
-  - la valeur null qui pourras être indifféremment considérée de type
-   [TInt] et [TText].  *)
+  - integer values with their values
+  - textual values with their values
+  - the null value, which may be indifferently considered as type
+   [TInt] and [TText].  *)
 type dbvalue =
-  | VInt of int     (* valeurs entières   *)
-  | VText of string (* valeurs textuelles *)
-  | VNull           (* la valeur NULL *)
+  | VInt of int     (* integer values   *)
+  | VText of string (* textual values   *)
+  | VNull           (* the NULL value *)
 ;;
 
-(* Le schéma d'une table est une liste de couple dont le premier
-   élément est le nom du champs et le second est le type du champs de
+(* A table schema is a list of pairs whose first
+   element is the field name and the second is the field type of
    type [coltype] *)
 type schema = (string*coltype) list ;;
 
 
-(* Une ligne d'une table est une liste de valeurs.
+(* A row of a table is a list of values.
  *)
 type row = dbvalue list ;;
 
-(* Une [table] est la donnée d'un schéma et d'une liste de lignes *)
+(* A [table] is a schema together with a list of rows *)
 type table = { cols : schema; rows : row list } ;;
 
-(* Le type [fd] représente le type des dépendances fonctionnelles
-   d'une table.
+(* The [fd] type represents the type of functional dependencies
+   of a table.
 
-   Il est composé d'un couple (lhs,rhs) dont chacun des deux membres
-   est une liste de nom de champs.
+   It consists of a pair (lhs, rhs) where each member is a list of
+   field names.
 
-   La dépendance (lhs,rhs) représente bien évidement la dépendance lhs -> rhs. 
+   The dependency (lhs, rhs) obviously represents the dependency lhs -> rhs.
  *)
 type fd = (string list) * (string list) ;;
 
 
-(* 
+(*
  * val check_row_type : row -> schema -> bool
- * @requires   une ligne et les colonnes d'une table
- * @ensures    retourne true si les types des cellules de la ligne sont
- *             les mêmes que celles des colonnes, sinon retourne false
- * @raises     rien
+ * @requires   a row and the columns of a table
+ * @ensures    returns true if the cell types in the row match those
+ *             of the columns, otherwise returns false
+ * @raises     nothing
 *)
 let rec check_row_type row cols =
    match (row, cols) with
@@ -71,11 +70,11 @@ let rec check_row_type row cols =
    | [], _ -> false
    | _, [] -> false
    | h :: rest_row, (_, (typedb, accepts_vnull)) :: rest_cols -> 
-      (*verifier type VNull*)
+      (*check VNull type*)
       if h = VNull then
          accepts_vnull
       else
-         (*verifier autres types*)
+         (*check other types*)
          match (h, typedb) with
          | VInt _, TInt -> check_row_type rest_row rest_cols
          | VText _, TText -> check_row_type rest_row rest_cols
@@ -83,18 +82,18 @@ let rec check_row_type row cols =
 ;;
 
 
-(* [check_table t] vérifie que la table [t] est valide.
+(* [check_table t] checks whether table [t] is valid.
  * val check_table : table -> bool
- * @requires   une table [tbl]
- * @ensures    retourne true si la table est valide, sinon retourne false
- * @raises     rien
- * remarques:  supposons qu'une table est valide si elle verifie : le nombre des 
- *             colonnes = la longueur des lignes, les valeurs et les 
- *             colonnes sont du type correspondants, nullabilité respectée
+ * @requires   a table [tbl]
+ * @ensures    returns true if the table is valid, otherwise false
+ * @raises     nothing
+ * remarks:  assume a table is valid if it satisfies: the number of
+ *           columns equals the length of the rows, values and columns
+ *           have matching types, nullability is respected
  *)
 let rec check_table tbl = 
    match tbl.rows with
-   | [] -> true   (*table vide est valide*)
+   | [] -> true   (*empty table is valid*)
    | h :: t -> 
       if (List.length h) <> (List.length tbl.cols) then
          false
@@ -105,14 +104,13 @@ let rec check_table tbl =
          check_table rest_of_table
 ;;
 
-(* [insert t r] insère si possible la ligne [r] dans la table [tbl].
+(* [insert t r] inserts the row [r] into the table [tbl] if possible.
  * val insert : table -> row -> table
- * @requires   une table [tbl] et la ligne [r] à insérer dedans
- * @ensures    insère la ligne [r] dans la table [tbl] et retourne la
- *             nouvelle table
- * @raises     lève une exception si : [tbl] est pas valide ou [row] n'a pas
- *             les mêmes types que les colonnes de [tbl] ou la longueur
- *             de [row] est différente de celle des colonnes de [tbl]
+ * @requires   a table [tbl] and the row [r] to insert into it
+ * @ensures    inserts row [r] into [tbl] and returns the new table
+ * @raises     raises an exception if: [tbl] is not valid or [row] does not
+ *             have the same types as the table columns, or the length
+ *             of [row] differs from the number of columns in [tbl]
 *)
 let insert tbl row = 
    if not (check_table tbl) then
@@ -127,10 +125,10 @@ let insert tbl row =
 
 (*
  * val common_cols_names : schema -> schema -> bool
- * @requires   deux listes des colonnes [cols1] et [cols2]
- * @ensures    retourne true si une colonne de [cols1] a le même nom qu'une
- *             colonne de [cols2], sinon retourne false
- * @raises     rien
+ * @requires   two column lists [cols1] and [cols2]
+ * @ensures    returns true if a column in [cols1] has the same name as a
+ *             column in [cols2], otherwise false
+ * @raises     nothing
 *)
 let rec common_cols_names cols1 cols2 =
    match cols1 with
@@ -147,10 +145,10 @@ let rec common_cols_names cols1 cols2 =
 
 (*
  * val combine_rows : row list -> table -> row list
- * @requires   une liste de lignes [rows1] et une table [tbl2] valide
- * @ensures    retourne le produit cartésien des lignes [rows1] avec
- *             toutes les lignes de [tbl2.rows]
- * @raises     rien
+ * @requires   a list of rows [rows1] and a valid table [tbl2]
+ * @ensures    returns the Cartesian product of rows [rows1] with all
+ *             rows in [tbl2.rows]
+ * @raises     nothing
 *)
 let rec combine_rows rows1 tbl2 =
    match rows1 with
@@ -159,12 +157,12 @@ let rec combine_rows rows1 tbl2 =
          List.map (fun r2 -> r1 @ r2) tbl2.rows @ combine_rows rest tbl2
 ;;
 
-(* [prod tbl1 tbl2] effectue le produit cartésien des tables [tbl1] et [tbl2]
+(* [prod tbl1 tbl2] computes the Cartesian product of tables [tbl1] and [tbl2]
  * val prod : table -> table -> table
- * @requires   deux tables [tbl1] et [tbl2]
- * @ensures    retourne une table du produit cartésien des deux tables
- * @raises     lève une exception si : au moins une des deux tables n'est pas valide
- *             ou si une colonne d'une table a le même nom que l'autre table
+ * @requires   two tables [tbl1] and [tbl2]
+ * @ensures    returns a table containing the Cartesian product of the two tables
+ * @raises     raises an exception if: at least one of the two tables is invalid
+ *             or if a column in one table has the same name as a column in the other
 *)                   
 let prod tbl1 tbl2 =
    if not (check_table tbl1) || not (check_table tbl2) then
@@ -179,10 +177,10 @@ let prod tbl1 tbl2 =
 
 (*
  * val get_indices : schema -> string list -> int list
- * @requires   une table [tbl] et une liste de noms de champs [fields]
- * @ensures    retourne la liste des indices correspondant aux champs [fields]
- *             dans l'ordre de [tbl.cols]
- * @raises     lève une exception si un champ de [fields] n'existe pas
+ * @requires   a table [tbl] and a list of field names [fields]
+ * @ensures    returns the list of indices corresponding to the fields [fields]
+ *             in the order of [tbl.cols]
+ * @raises     raises an exception if a field in [fields] does not exist
 *)
 let get_indices cols fields =
    let rec find_index name = function
@@ -198,10 +196,10 @@ let get_indices cols fields =
 
 (*
  * val project_row : row -> int list -> row
- * @requires   une ligne [row] et une liste d'indices [indices]
- * @ensures    retourne une nouvelle ligne contenant uniquement les valeurs
- *             aux positions données par [indices], dans le même ordre
- * @raises     rien
+ * @requires   a row [row] and a list of indices [indices]
+ * @ensures    returns a new row containing only the values at the positions
+ *             specified by [indices], in the same order
+ * @raises     nothing
  *)
 let project_row row indices =
   List.map (List.nth row) indices
@@ -209,9 +207,9 @@ let project_row row indices =
 
 (*
  * val project_schema : schema -> string list -> schema
- * @requires   une table [tbl] et une liste de noms de champs [fields]
- * @ensures    retourne le nouveau schéma après projection
- * @raises     lève une exception si un champ de [fields] n'existe pas
+ * @requires   a table [tbl] and a list of field names [fields]
+ * @ensures    returns the new schema after projection
+ * @raises     raises an exception if a field in [fields] does not exist
  *)
 let project_schema cols fields =
    let rec find_col name = function
@@ -225,14 +223,13 @@ let project_schema cols fields =
    List.map (fun field -> find_col field cols) fields
 ;;
 
-(* [projection tbl fields] effectue la projection suivant la liste de
-   champs [fields] de la table [tbl]
+(* [projection tbl fields] performs the projection on the list of
+   fields [fields] of table [tbl]
  * val projection : table -> string list -> table
- * @requires   une table [tbl] et une liste de noms de champs [fields]
- * @ensures    retourne une table dont le schéma ne contient que les
- *             champs listés dans [fields] (dans l'ordre donné) et les
- *             lignes projetées sur ces champs
- * @raises     lève une exception si : [tbl] n'est pas valide
+ * @requires   a table [tbl] and a list of field names [fields]
+ * @ensures    returns a table whose schema contains only the fields listed in
+ *             [fields] (in the given order) and whose rows are projected on those fields
+ * @raises     raises an exception if: [tbl] is not valid
  *)
 let projection tbl fields =
    if not (check_table tbl) then
@@ -244,15 +241,13 @@ let projection tbl fields =
       { cols = new_cols; rows = new_rows }
 ;;
 
-(* [restrict tbl test] effectue la restriction des données présentes
-   dans la table [tbl] en accord avec la fonction [test]. On ne garde
-   dans le résultat que les lignes pour lesquelles [test] retourne
-   [true].
+(* [restrict tbl test] restricts the data present in table [tbl]
+   according to the function [test]. Only rows for which [test]
+   returns [true] are kept in the result.
  * val restrict : table -> (row -> bool) -> table
- * @requires   une table [tbl] et une fonction de test [test]
- * @ensures    retourne une table contenant uniquement les lignes de
- *             [tbl] qui satisfont [test]
- * @raises     lève une exception si [tbl] n'est pas valide
+ * @requires   a table [tbl] and a test function [test]
+ * @ensures    returns a table containing only the rows of [tbl] that satisfy [test]
+ * @raises     raises an exception if [tbl] is not valid
  *)
 let restrict tbl test =
    if not (check_table tbl) then
@@ -264,11 +259,11 @@ let restrict tbl test =
 
 (*
  * val check_fd : table -> string list -> string list -> bool
- * @requires   une table [tbl] valide, deux listes de noms de 
- *             champs [lhs] et [rhs] existant dans [tbl]
- * @ensures    retourne true si la dépendance lhs -> rhs est vérifiée
- *             par toutes les lignes de [tbl], sinon false
- * @raises     rien
+ * @requires   a valid table [tbl], two lists of field names [lhs] and [rhs]
+ *             that exist in [tbl]
+ * @ensures    returns true if the dependency lhs -> rhs holds for all rows in [tbl],
+ *             otherwise false
+ * @raises     nothing
  *)
 let check_fd tbl lhs rhs =
    let indices_lhs = get_indices tbl.cols lhs in
@@ -286,9 +281,9 @@ let check_fd tbl lhs rhs =
 
 (*
  * val subsets : 'a list -> 'a list list
- * @requires   une liste [lst] d'éléments
- * @ensures    retourne toutes les sous-listes non vides de [lst]
- * @raises     rien
+ * @requires   a list [lst] of elements
+ * @ensures    returns all non-empty sublists of [lst]
+ * @raises     nothing
  *)
 let rec subsets = function
    | [] -> []
@@ -297,13 +292,13 @@ let rec subsets = function
          [x] :: List.map (fun s -> x :: s) rest_subsets @ rest_subsets
 ;;
 
-(* [compute_deps tbl] retourne TOUTES les dépendances fonctionnelles
-   trouvées en étudiant les données présentes dans [tbl]
+(* [compute_deps tbl] returns ALL functional dependencies
+   found by examining the data present in [tbl]
  * val compute_deps : table -> fd list
- * @requires   une table [tbl] valide
- * @ensures    retourne la liste de toutes les dépendances fonctionnelles
- *             lhs -> rhs vérifiées par les données de [tbl]
- * @raises     lève une exception si [tbl] n'est pas valide
+ * @requires   a valid table [tbl]
+ * @ensures    returns the list of all functional dependencies
+ *             lhs -> rhs satisfied by the data in [tbl]
+ * @raises     raises an exception if [tbl] is not valid
  *)
 let compute_deps tbl =
    if not (check_table tbl) then
@@ -326,10 +321,10 @@ let compute_deps tbl =
 
 (*
  * val is_elementary : table -> fd -> bool
- * @requires   une table [tbl] valide et une dépendance (lhs, rhs)
- * @ensures    retourne true si la dépendance est élémentaire
- *             (aucun attribut de lhs n'est redondant)
- * @raises     rien
+ * @requires   a valid table [tbl] and a dependency (lhs, rhs)
+ * @ensures    returns true if the dependency is elementary
+ *             (no attribute in lhs is redundant)
+ * @raises     nothing
  *)
 let is_elementary tbl (lhs, rhs) =
    let rec remove_one = function
@@ -340,13 +335,12 @@ let is_elementary tbl (lhs, rhs) =
    not (List.exists (fun subset -> check_fd tbl subset rhs) subsets_lhs)
 ;;
 
-(* [compute_elementary_deps tbl] retourne TOUTES les dépendances
-   fonctionnelles élémentaires trouvées en étudiant les données
-   présentes dans [tbl]
+(* [compute_elementary_deps tbl] returns ALL elementary functional
+   dependencies found by examining the data present in [tbl]
  * val compute_elementary_deps : table -> fd list
- * @requires   une table [tbl] valide
- * @ensures    retourne la liste des dépendances élémentaires vérifiées
- * @raises     lève une exception si [tbl] n'est pas valide
+ * @requires   a valid table [tbl]
+ * @ensures    returns the list of elementary dependencies satisfied
+ * @raises     raises an exception if [tbl] is not valid
  *)
 let compute_elementary_deps tbl =
    if not (check_table tbl) then
@@ -356,13 +350,13 @@ let compute_elementary_deps tbl =
       List.filter (is_elementary tbl) all_deps
 ;;
 
-(* [normalization_level tbl] retourne le niveau de normalisation de
-   [tbl] sous forme d'un entier.
+(* [normalization_level tbl] returns the normalization level of
+   [tbl] as an integer.
  * val normalization_level : table -> int
- * @requires   une table [tbl] valide
- * @ensures    retourne 1 si la table est en 1NF, 2 si elle est en 2NF,
- *             3 si elle est en 3NF
- * @raises     lève une exception si [tbl] n'est pas valide
+ * @requires   a valid table [tbl]
+ * @ensures    returns 1 if the table is in 1NF, 2 if it is in 2NF,
+ *             3 if it is in 3NF
+ * @raises     raises an exception if [tbl] is not valid
  *)
 let normalization_level tbl =
    if not (check_table tbl) then
@@ -371,11 +365,11 @@ let normalization_level tbl =
       let all_attrs = List.map fst tbl.cols in
       let elem_deps = compute_elementary_deps tbl in
       
-      (* 1) Trouver toutes les superclés *)
+      (* 1) Find all superkeys *)
       let all_subsets = subsets all_attrs in
       let superkeys = List.filter (fun lhs -> check_fd tbl lhs all_attrs) all_subsets in
       
-      (* 2) Clés candidates : superclés minimales *)
+      (* 2) Candidate keys: minimal superkeys *)
       let rec is_minimal key =
          not (List.exists (fun k ->
             List.length k < List.length key &&
@@ -385,17 +379,17 @@ let normalization_level tbl =
       in
       let candidate_keys = List.filter is_minimal superkeys in
       
-      (* 3) Choisir une clé candidate (la plus courte) *)
+      (* 3) Choose a candidate key (the shortest one) *)
       let primary_key =
         match List.sort (fun a b -> compare (List.length a) (List.length b)) candidate_keys with
-        | [] -> all_attrs   (* cas extrême, ne devrait pas arriver *)
+        | [] -> all_attrs   (* extreme case, should not happen *)
         | k :: _ -> k
       in
       
-      (* 4) Attributs premiers = ceux de la clé choisie *)
+      (* 4) Prime attributes = those in the chosen key *)
       let prime_attrs = primary_key in
       
-      (* 5) Violation 2NF : lhs sous-ensemble strict de la clé choisie et rhs non premier *)
+      (* 5) 2NF violation: lhs is a strict subset of the chosen key and rhs is not prime *)
       let has_partial = List.exists (fun (lhs, rhs) ->
          let lhs_is_proper_subset_of_a_key =
             List.length lhs < List.length primary_key &&
@@ -405,7 +399,7 @@ let normalization_level tbl =
          lhs_is_proper_subset_of_a_key && rhs_has_non_prime
       ) elem_deps in
       
-      (* 6) Violation 3NF : lhs non superclé et rhs non premier *)
+      (* 6) 3NF violation: lhs is not a superkey and rhs is not prime *)
       let has_transitive = List.exists (fun (lhs, rhs) ->
          let lhs_is_superkey = List.exists (fun key ->
             List.for_all (fun a -> List.mem a key) lhs && check_fd tbl lhs all_attrs
@@ -517,7 +511,7 @@ let run_tests () =
       Printf.printf "\nOK compute_deps: finds functional dependencies\n"
    else
       Printf.printf "FAIL compute_deps: should find a,b -> c\n";
-   
+    
    (* test compute_elementary_deps *)
    let elem_deps = compute_elementary_deps tbl_deps in
    let is_elem = List.for_all (fun (lhs, rhs) -> List.length lhs <= 2) elem_deps in
